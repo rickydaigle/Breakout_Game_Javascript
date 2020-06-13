@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Ricky's Ball Breaker!</title>
+        <base href="" target="_blank">
+        <style>
+            * { padding: 0; margin: 0;}
+            canvas  { background: #eee; display: block; margin: 50px auto; }
+            .mouse-invisible { cursor:crosshair; }
+            .audio { display: block; margin: auto; }
+        </style>
+    </head>
+    <body>
+
+        <canvas id="myCanvas" class="mouse-invisible" width="1024" height="768"></canvas>
+        <audio controls loop autoplay="autoplay" class="audio"><source src="song.mp3" type="audio/mpeg">Your browser does not support the audio element.</audio>
+        <script>
+            // Parameters
+            var canvas = document.getElementById("myCanvas");
+            var ctx = canvas.getContext("2d");
+            var startX = canvas.width/2; // Ball reset position X (right / left)
+            var startY = canvas.height-30; // Ball reset position Y (up / down)
+            var startDx = 3; // Ball speed right & left
+            var startDy = -3; // Ball speed up & down
+            var startingLives = 3;
+            var startingBall = 8;
+            var startingPaddle = 100;
+            var x = startX;
+            var y = startY;
+            var dx = startDx;
+            var dy = startDy;
+            var ballRadius = startingBall;
+            var ballColor = "#FF0000";
+            var paddleColor = "#0095DD";
+            var brickColor = "#0095DD";
+            var scoreColor = "#0095DD";
+            var scoreFont = "20px Arial";
+            var paddleHeight = 10;
+            var paddleWidth = startingPaddle;
+            var paddleX = (canvas.width-paddleWidth) / 2;
+            var paddleSpeed = 7;
+            var brickRowCount = 4;
+            var brickColumnCount = 10;
+            var brickWidth = 75;
+            var brickHeight = 25;
+            var brickPadding = 20;
+            var brickOffsetTop = 50;
+            var brickOffsetLeft = 45;
+            var rightPressed = false;
+            var leftPressed = false;
+            var score = 0;
+            var lives = startingLives;
+            var gameStatus = 0;
+
+            // Create bricks array
+            var bricks = [];
+            for (var c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (var r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = {x: 0, y: 0, status: 1};
+                }
+            }
+
+            // Controls
+            document.addEventListener("keydown", keyDownHandler, false);
+            document.addEventListener("keyup", keyUpHandler, false);
+            document.addEventListener("mousemove", mouseMoveHandler, false);
+
+            function mouseMoveHandler(e) {
+                var relativeX = e.clientX - canvas.offsetLeft;
+                if(relativeX > 0 && relativeX < canvas.width) {
+                    if (relativeX < 0 + paddleWidth/2) {
+                        paddleX = 0;
+                    } else if (relativeX > canvas.width - paddleWidth/2) {
+                        paddleX = canvas.width - paddleWidth;
+                    } else {
+                        paddleX = relativeX - paddleWidth/2;
+                    }
+                }    
+            }
+
+            function keyDownHandler(e) {
+                if (e.key == "Right" || e.key == "ArrowRight") {
+                    rightPressed = true;
+                }
+                else if (e.key == "Left" || e.key == "ArrowLeft") {
+                    leftPressed = true;
+                }
+            }
+
+            function keyUpHandler(e) {
+                if (e.key == "Right" || e.key == "ArrowRight") {
+                    rightPressed = false;
+                }
+                else if (e.key == "Left" || e.key == "ArrowLeft") {
+                    leftPressed = false;
+                }
+            }
+
+            // Brick Hit Detection
+            function collisionDetection() {
+                for (var c = 0; c < brickColumnCount; c++) {
+                    for (var r = 0; r < brickRowCount; r++) {
+                        var b = bricks[c][r];
+                        if (b.status == 1) {
+                            if (x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
+                                dy = -dy;
+                                b.status = 0;
+                                score++;
+                                if (score == brickRowCount*brickColumnCount) {
+                                    gameStatus = 0;
+                                    alert("You win! Score: " + score);
+                                    document.location.reload();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            function drawScore() {
+                ctx.font = scoreFont;
+                ctx.fillStyle = scoreColor;
+                ctx.fillText("Score: " + score, 20, 25);
+            }
+
+            function drawLives() {
+                ctx.font = scoreFont;
+                ctx.fillStyle = scoreColor;
+                ctx.fillText("Lives: "+lives, canvas.width-85, 25);
+            }
+
+            function drawBall() {
+                ctx.beginPath();
+                ctx.arc(x, y, ballRadius, 0, Math.PI*2);
+                ctx.fillStyle = ballColor;
+                ctx.fill();
+                ctx.closePath;
+            }
+
+            function drawPaddle() {
+                ctx.beginPath();
+                ctx.rect(paddleX, canvas.height-paddleHeight, paddleWidth, paddleHeight);
+                ctx.fillStyle = paddleColor;
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            function drawBricks() {
+                for (var c = 0; c < brickColumnCount; c++) {
+                    for (var r = 0; r < brickRowCount; r++) {
+                        if (bricks[c][r].status == 1) {
+                            var brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
+                            var brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
+                            bricks[c][r].x = brickX;
+                            bricks[c][r].y = brickY;
+                            ctx.beginPath();
+                            ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                            ctx.fillStyle = brickColor;
+                            ctx.fill();
+                            ctx.closePath();
+                        }
+                    }
+                }
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBricks();
+                drawBall();
+                drawPaddle();
+                drawScore();
+                drawLives();
+                collisionDetection();
+
+                // Ball Hit Detection (Change direction of the ball if it hits a wall or the paddle, except bottom wall)
+                if (x + dx > canvas.width-ballRadius || x + dx < ballRadius) {
+                    dx = -dx;
+                }
+
+                if (y + dy < ballRadius) {
+                    dy = -dy;
+                }
+                else if (y + dy > canvas.height-ballRadius) {
+                    if (x > paddleX && x < paddleX + paddleWidth) {
+                        dy = -dy;
+                    } else {
+                        lives--;
+                        if (!lives) {
+                            gameStatus = 0;
+                            alert("Game Over");
+                            document.location.reload();
+                        }
+                        else {
+                            x = startX;
+                            y = startY;
+                            dx = startDx;
+                            dy = startDy;
+                            paddleX = canvas.width-paddleWidth/2;
+                        }
+                    }
+                }
+                    
+                // Paddle Movement & Hit Detection - Walls (Stop moving paddle if it hits a wall)
+                if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                    paddleX += paddleSpeed;
+                }
+                else if (leftPressed && paddleX > 0) {
+                    paddleX -= paddleSpeed;
+                }
+
+                x += dx;
+                y += dy;
+
+                if (gameStatus == 1) {
+                    requestAnimationFrame(draw);
+                }
+            }
+
+            function startGame() {
+                if (confirm("Play a game of breakout?")) {
+                    gameStatus = 1;
+                } else {
+                    // Do nothing
+                } 
+            }
+
+            startGame();
+                        
+            if (gameStatus == 1) {
+                draw();
+            }
+
+            // leftovers from exercises - may be useful later //
+            //
+            // Randomize ball color using hsl //
+            // ballColor = ctx.fillStyle = 'hsl(' + 360 * Math.random() + ', 50%, 50%)';
+
+        </script>
+        
+    </body>
+</html>
